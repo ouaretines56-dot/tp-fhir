@@ -8,105 +8,213 @@
         .section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
         h2 { color: #333; font-size: 1.5rem; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
         .mesure-item { background: #e7f3ff; padding: 10px; border-radius: 5px; margin-bottom: 5px; list-style: none; border-left: 5px solid #007bff; }
+        .badge-loinc { background: #6f42c1; color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
+        .badge-ucum  { background: #0d6efd; color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-left: 4px; }
+        .alert-result { margin-top: 12px; display: none; }
+        .code-block { background: #f1f3f5; border-radius: 6px; padding: 10px 14px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; word-break: break-all; max-height: 260px; overflow-y: auto; }
+        .status-ok   { color: #198754; font-weight: 600; }
+        .status-err  { color: #dc3545; font-weight: 600; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="text-center mb-5">Mon Dashboard FHIR</h1>
+<div class="container">
+    <h1 class="text-center mb-5">Mon Dashboard FHIR</h1>
 
-        <!-- ETAPE 1 : Création du patient (Avec le champ genre pour éviter l'erreur Python) -->
-        <div class="section">
-            <h2>Étape 1 : Créer le Patient</h2>
-            <form action="/create_patient" method="POST" class="row g-2">
-                <div class="col-md-4">
-                    <input type="text" name="nom" class="form-control" placeholder="Nom" required>
-                </div>
-                <div class="col-md-4">
-                    <input type="text" name="prenom" class="form-control" placeholder="Prénom" required>
-                </div>
-                <div class="col-md-2">
-                    <select name="genre" class="form-select">
-                        <option value="female">Féminin</option>
-                        <option value="male">Masculin</option>
-                        <option value="other">Autre</option>
-                        <option value="unknown">Inconnu</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-success w-100">Créer</button>
-                </div>
-            </form>
-        </div>
-
-        <!-- ETAPE 2 : Ajout de la mesure -->
-        <div class="section">
-            <h2>Étape 2 : Ajouter une Fréquence Cardiaque</h2>
-            <form action="/add_observation" method="POST" class="row g-2">
-                <div class="col-md-5">
-                    <input type="text" name="patient_id" class="form-control" placeholder="Coller l'ID ici (ex: 123)" required>
-                </div>
-                <div class="col-md-5">
-                    <input type="number" name="valeur" class="form-control" placeholder="Ex: 75 (bpm)" required>
-                </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-warning text-white w-100">Ajouter</button>
-                </div>
-            </form>
-        </div>
-
-        <!-- ETAPE 3 : Dossier Complet -->
-        <div class="section">
-            <h2>Étape 3 : Voir le Dossier Complet</h2>
-            <div class="input-group mb-3">
-                <input type="text" id="idSearch" class="form-control" placeholder="Entrez l'ID du patient">
-                <button class="btn btn-primary" onclick="chargerDossier()">Afficher</button>
+    <div class="section">
+        <h2>Étape 1 — Créer un Patient</h2>
+        <div class="row g-2">
+            <div class="col-md-3"><input type="text" id="nom" class="form-control" placeholder="Nom" required></div>
+            <div class="col-md-3"><input type="text" id="prenom" class="form-control" placeholder="Prénom" required></div>
+            <div class="col-md-2">
+                <select id="genre" class="form-select">
+                    <option value="female">Féminin</option>
+                    <option value="male">Masculin</option>
+                    <option value="other">Autre</option>
+                    <option value="unknown">Inconnu</option>
+                </select>
             </div>
-            
-            <div id="zoneResultat" style="display:none; margin-top: 20px;">
-                <h3 id="nomAffiche" class="h5 fw-bold text-primary"></h3>
-                <hr>
-                <ul id="listeObservations" class="p-0"></ul>
-            </div>
+            <div class="col-md-2"><input type="date" id="date_naissance" class="form-control" value="2000-01-01"></div>
+            <div class="col-md-2"><button class="btn btn-success w-100" onclick="creerPatient()">Créer</button></div>
+        </div>
+        <div id="alerte-patient" class="alert-result alert"></div>
+    </div>
+
+    <div class="section">
+        <h2>Étape 2 — Ajouter une Fréquence Cardiaque</h2>
+        <p class="text-muted small">Code LOINC : <span class="badge-loinc">8867-4 Heart rate</span> — Unité UCUM : <span class="badge-ucum">/min</span></p>
+        <div class="row g-2">
+            <div class="col-md-5"><input type="text" id="obs-patient-id" class="form-control" placeholder="ID patient (ex: 12345)"></div>
+            <div class="col-md-5"><input type="number" id="obs-valeur" class="form-control" placeholder="Ex: 75 (bpm)"></div>
+            <div class="col-md-2"><button class="btn btn-warning text-white w-100" onclick="ajouterObs()">Ajouter</button></div>
+        </div>
+        <div id="alerte-obs" class="alert-result alert"></div>
+    </div>
+
+    <div class="section">
+        <h2>Étape 3 — Voir le Dossier Complet</h2>
+        <div class="input-group mb-3">
+            <input type="text" id="idSearch" class="form-control" placeholder="ID du patient">
+            <button class="btn btn-primary" onclick="chargerDossier()">Afficher</button>
+        </div>
+        <div id="zoneResultat" style="display:none; margin-top: 20px;">
+            <h3 id="nomAffiche" class="h5 fw-bold text-primary"></h3>
+            <hr>
+            <ul id="listeObservations" class="p-0"></ul>
         </div>
     </div>
 
-    <script>
-        function chargerDossier() {
-            const id = document.getElementById('idSearch').value;
-            const zone = document.getElementById('zoneResultat');
+    <div class="section">
+        <h2>Étape 4 — Modifier / Supprimer une Observation</h2>
+        <div class="row g-2 mb-3">
+            <div class="col-md-4"><input type="text" id="upd-patient-id" class="form-control" placeholder="ID patient"></div>
+            <div class="col-md-4"><input type="text" id="upd-obs-id" class="form-control" placeholder="ID observation à modifier"></div>
+            <div class="col-md-2"><input type="number" id="upd-valeur" class="form-control" placeholder="Nouvelle valeur bpm"></div>
+            <div class="col-md-2"><button class="btn btn-secondary w-100" onclick="modifierObs()">Modifier (PUT)</button></div>
+        </div>
+        <div class="row g-2">
+            <div class="col-md-4"><input type="text" id="del-patient-id" class="form-control" placeholder="ID patient (pour vérifier après)"></div>
+            <div class="col-md-6"><input type="text" id="del-obs-id" class="form-control" placeholder="ID observation à supprimer"></div>
+            <div class="col-md-2"><button class="btn btn-danger w-100" onclick="supprimerObs()">Supprimer (DELETE)</button></div>
+        </div>
+        <div id="alerte-etape4" class="alert-result alert"></div>
+    </div>
+
+    <div class="section">
+        <h2>Étape 5 — Tests de Gestion des Erreurs</h2>
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-danger" onclick="testerErreur(400)">Tester 400 Bad Request</button>
+            <button class="btn btn-outline-danger" onclick="testerErreur(404)">Tester 404 Not Found</button>
+            <button class="btn btn-outline-warning" onclick="testerErreur(401)">Tester 401 Unauthorized</button>
+        </div>
+        <div id="alerte-erreur" class="alert-result alert alert-secondary">
+            <strong id="erreur-titre"></strong>
+            <div id="erreur-detail" class="code-block mt-2"></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function showAlert(id, html, type) {
+    const el = document.getElementById(id);
+    el.className = `alert-result alert alert-${type}`;
+    el.innerHTML = html;
+    el.style.display = 'block';
+}
+
+function creerPatient() {
+    const fd = new FormData();
+    fd.append('nom', document.getElementById('nom').value);
+    fd.append('prenom', document.getElementById('prenom').value);
+    fd.append('genre', document.getElementById('genre').value);
+    fd.append('date_naissance', document.getElementById('date_naissance').value);
+    fetch('/create_patient', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('alerte-patient', `✅ Patient créé ! ID : <strong>${data.id}</strong> — copiez cet ID pour les étapes suivantes.`, 'success');
+            } else {
+                showAlert('alerte-patient', `❌ Erreur HTTP ${data.status} : ${data.error || data.detail}`, 'danger');
+            }
+        })
+        .catch(() => showAlert('alerte-patient', '❌ Impossible de joindre le serveur Flask.', 'danger'));
+}
+
+function ajouterObs() {
+    const fd = new FormData();
+    fd.append('patient_id', document.getElementById('obs-patient-id').value);
+    fd.append('valeur', document.getElementById('obs-valeur').value);
+    fetch('/add_observation', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('alerte-obs', `✅ Observation créée ! ID : <strong>${data.id}</strong> — notez cet ID pour l'étape 4.`, 'success');
+            } else {
+                showAlert('alerte-obs', `❌ Erreur HTTP ${data.status} : ${data.error || data.detail}`, 'danger');
+            }
+        })
+        .catch(() => showAlert('alerte-obs', '❌ Impossible de joindre le serveur Flask.', 'danger'));
+}
+
+function chargerDossier() {
+    const id = document.getElementById('idSearch').value.trim();
+    if (!id) { alert("Veuillez saisir un ID"); return; }
+    fetch('/get_dossier/' + id)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert("Erreur : " + data.error); return; }
+            document.getElementById('zoneResultat').style.display = 'block';
+            document.getElementById('nomAffiche').innerText = "Dossier de : " + data.nom + " " + data.prenom;
             const liste = document.getElementById('listeObservations');
-            const titreNom = document.getElementById('nomAffiche');
-
-            if(!id) { alert("Veuillez saisir un ID"); return; }
-
-            fetch('/get_dossier/' + id.trim())
-                .then(response => response.json())
-                .then(data => {
-                    if(data.error) {
-                        alert("Erreur: " + data.error);
-                        return;
-                    }
-                    
-                    zone.style.display = 'block';
-                    titreNom.innerText = "Dossier de : " + data.nom + " " + data.prenom;
-                    liste.innerHTML = "";
-
-                    if (data.observations.length === 0) {
-                        liste.innerHTML = "<li class='text-muted text-center'>Aucune mesure trouvée pour ce patient.</li>";
-                    } else {
-                        data.observations.forEach(obs => {
-                            liste.innerHTML += `
-                                <li class="mesure-item">
-                                    <strong>${obs.type}</strong> : ${obs.valeur} ${obs.unite}
-                                </li>`;
-                        });
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert("Impossible de joindre le serveur Flask.");
+            liste.innerHTML = "";
+            if (data.observations.length === 0) {
+                liste.innerHTML = "<li class='text-muted text-center'>Aucune mesure trouvée.</li>";
+            } else {
+                data.observations.forEach(obs => {
+                    liste.innerHTML += `<li class="mesure-item"><strong>${obs.type}</strong><span class="badge-loinc">LOINC ${obs.loinc}</span> : ${obs.valeur} ${obs.unite} <span class="badge-ucum">UCUM ${obs.ucum}</span><small class="text-muted ms-2">(ID obs : ${obs.id})</small></li>`;
                 });
-        }
-    </script>
+            }
+        })
+        .catch(() => alert("Impossible de joindre le serveur Flask."));
+}
+
+function modifierObs() {
+    const fd = new FormData();
+    fd.append('patient_id', document.getElementById('upd-patient-id').value);
+    fd.append('obs_id', document.getElementById('upd-obs-id').value);
+    fd.append('nouvelle_valeur', document.getElementById('upd-valeur').value);
+    fetch('/update_observation', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('alerte-etape4', `✅ Observation mise à jour (HTTP ${data.status}).`, 'success');
+            } else {
+                showAlert('alerte-etape4', `❌ Erreur HTTP ${data.status} : ${data.error || data.detail}`, 'danger');
+            }
+        })
+        .catch(() => showAlert('alerte-etape4', '❌ Impossible de joindre le serveur Flask.', 'danger'));
+}
+
+function supprimerObs() {
+    const obsId = document.getElementById('del-obs-id').value.trim();
+    const pId   = document.getElementById('del-patient-id').value.trim();
+    if (!obsId) { alert("Renseignez un ID d'observation."); return; }
+    if (!confirm(`Supprimer l'observation ${obsId} ?`)) return;
+    fetch('/delete_observation/' + obsId, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                let msg = `✅ Observation supprimée (HTTP ${data.status}). `;
+                if (pId) {
+                    fetch('/verify_patient/' + pId)
+                        .then(r2 => r2.json())
+                        .then(d2 => { msg += `<br>${d2.message}`; showAlert('alerte-etape4', msg, 'success'); });
+                } else {
+                    showAlert('alerte-etape4', msg, 'success');
+                }
+            } else {
+                showAlert('alerte-etape4', `❌ Erreur HTTP ${data.status} : ${data.detail}`, 'danger');
+            }
+        })
+        .catch(() => showAlert('alerte-etape4', '❌ Impossible de joindre le serveur Flask.', 'danger'));
+}
+
+function testerErreur(code) {
+    const urls = { 400: '/test_erreur_400', 404: '/test_erreur_404', 401: '/test_erreur_401' };
+    const titres = { 400: '400 Bad Request — payload invalide (resourceType manquant)', 404: '404 Not Found — ID inexistant', 401: '401 Unauthorized — absence de token' };
+    const types = { 400: 'danger', 404: 'danger', 401: 'warning' };
+    fetch(urls[code])
+        .then(r => r.json())
+        .then(data => {
+            const reussi = data.reussi ? `<span class="status-ok">✅ Comportement attendu</span>` : `<span class="status-err">⚠️ Code reçu : ${data.code_http}</span>`;
+            document.getElementById('erreur-titre').innerHTML = `HTTP ${data.code_http} — ${titres[code]} — ${reussi}`;
+            document.getElementById('erreur-detail').textContent = JSON.stringify(data.reponse_serveur || data.explication || data, null, 2);
+            const el = document.getElementById('alerte-erreur');
+            el.className = `alert-result alert alert-${types[code]}`;
+            el.style.display = 'block';
+        })
+        .catch(() => showAlert('alerte-erreur', '❌ Impossible de joindre le serveur Flask.', 'danger'));
+}
+</script>
 </body>
 </html>

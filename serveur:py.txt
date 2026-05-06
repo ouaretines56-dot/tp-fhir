@@ -1,0 +1,19 @@
+import http.server
+import socketserver
+import webbrowser
+
+# On définit le port (8000 est le standard)
+PORT = 8000
+
+# On configure le serveur pour qu'il lise tes fichiers HTML
+Handler = http.server.SimpleHTTPRequestHandler
+
+with socketserver.TCPServer(("", PORT), Handler) as httpd:
+    print(f"✅ SERVEUR LANCÉ SUR : http://localhost:{PORT}")
+    print("Appuie sur Ctrl+C pour arrêter le serveur.")
+    
+    # Ça ouvre ton navigateur automatiquement sur ton travail
+    webbrowser.open(f"http://localhost:{PORT}")
+    
+    # Lance le serveur indéfiniment
+    httpd.serve_forever()
